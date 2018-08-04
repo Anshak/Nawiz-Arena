@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Networking;
-using UnityStandardAssets.CrossPlatformInput;
+
 
 
 [RequireComponent(typeof (WeaponManager))]
@@ -22,6 +22,8 @@ public class PlayerShoot : NetworkBehaviour {
     private PlayerWeapon currentWeapon;
     private Rigidbody firedProjectileRigidbody;
     private Projectile firedProjectileScript;
+
+    public GameObject bfire;
 
     private void Start()
     {
@@ -52,9 +54,12 @@ public class PlayerShoot : NetworkBehaviour {
             }
         }
 
-  
+        bfire = GameObject.Find("FixedButton 2");
+        FixedButton FireButton = bfire.GetComponent<FixedButton>();
+                               
+        //JumpAxis = FireButton.Pressed;
 
-        if (CrossPlatformInputManager.GetButtonDown("Fire1"))
+        if (FireButton.Pressed) // replaced Input.GetButtonDown("Fire1") by FireButton.Pressed
         {
             Shoot();
 

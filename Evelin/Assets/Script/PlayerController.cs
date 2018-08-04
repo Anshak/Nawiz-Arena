@@ -1,10 +1,10 @@
 ﻿
 using UnityEngine;
-using UnityStandardAssets.CrossPlatformInput;
 
 [RequireComponent(typeof(Animator))]
 [RequireComponent(typeof(PlayerMotor))]
 [RequireComponent(typeof(ConfigurableJoint))]
+
 public class PlayerController : MonoBehaviour {
 
     [SerializeField]
@@ -21,6 +21,20 @@ public class PlayerController : MonoBehaviour {
     [SerializeField]
     private float thrusterFuelRegenSpeed = 0.3f;
     private float thrusterFuelAmount = 1f;
+
+    [HideInInspector]
+    public Vector2 RunAxis;
+    [HideInInspector]
+    public bool JumpAxis;
+    [HideInInspector]
+    public Vector2 LookAxis;
+
+    //public FixedJoystick MoveJoystick;
+    // public FixedButton JumpButton;
+    // public FixedTouchField TouchField;
+    public GameObject joy;
+    public GameObject jump;
+    public GameObject touch;
 
     public float GetThrusterFuelAmount()
     {
@@ -65,10 +79,29 @@ public class PlayerController : MonoBehaviour {
                 return;
         }
 
-        if (Cursor.lockState != CursorLockMode.Locked)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-        }
+        //var MoveJoystick = GameObject.FindWithTag("MoveJoystick");
+
+        // Getting the Joystick scene gameObject
+        joy = GameObject.Find("Fixed Joystick");
+        // Getting the Script component to reference the function
+        FixedJoystick MoveJoystick = joy.GetComponent<FixedJoystick>();
+
+        //same than the Joystick
+        jump = GameObject.Find("FixedButton 1");
+        FixedButton JumpButton = jump.GetComponent<FixedButton>();
+
+        //same than the Joystick
+        touch = GameObject.Find("LookAxis Panel");
+        FixedTouchField TouchField = touch.GetComponent<FixedTouchField>();
+
+        RunAxis = MoveJoystick.inputVector;
+        JumpAxis = JumpButton.Pressed;
+        LookAxis = TouchField.TouchDist;
+
+        // if (Cursor.lockState != CursorLockMode.Locked)
+        //{
+        //    Cursor.lockState = CursorLockMode.Locked;
+        //}
 
         // setting target position for spring makes it cool when flying over objects
         RaycastHit _hit;
@@ -82,8 +115,9 @@ public class PlayerController : MonoBehaviour {
         }
 
         //Calculate movement velocity
-        float _xMov = CrossPlatformInputManager.GetAxis("Horizontal"); //changed Input to CrossPlatformInputManager
-        float _zMov = CrossPlatformInputManager.GetAxis("Vertical"); //changed Input to CrossPlatformInputManager
+        float _xMov = RunAxis.x; // Changed  Input.GetAxis("Horizontal") to RunAxis.x 
+        float _zMov = RunAxis.y; // Same
+    
 
         Vector3 _movHorizontal = transform.right * _xMov; 
         Vector3 _movVertical = transform.forward * _zMov;
@@ -97,9 +131,9 @@ public class PlayerController : MonoBehaviour {
         //apply movement
         motor.Move(_velocity);
 
-        
+
         //calculate rotation as a 3d vector (turning around)
-        float _yRot = CrossPlatformInputManager.GetAxisRaw("Mouse X");
+        float _yRot = LookAxis.x; // Changed Input.GetAxisRaw("Mouse X") to LookAxis.x
 
         Vector3 _rotation = new Vector3(0f, _yRot, 0f) * lookSensitivity;
 
@@ -107,7 +141,7 @@ public class PlayerController : MonoBehaviour {
         motor.Rotate(_rotation);
 
         //calculate camera rotation as a 3d vector (look up and down)
-        float _xRot = CrossPlatformInputManager.GetAxisRaw("Mouse Y");
+        float _xRot = LookAxis.y; // Changed Input.GetAxisRaw("Mouse Y") to LookAxis.y
 
         float _cameraRotationX = _xRot * lookSensitivity;
 
@@ -118,7 +152,7 @@ public class PlayerController : MonoBehaviour {
         //calculate thruster force based on player input
         Vector3 _thrusterForce = Vector3.zero;
         
-        if (CrossPlatformInputManager.GetButton("Jump") && thrusterFuelAmount > 0f)//changed Input to CrossPlatformInputManager
+        if (JumpAxis && thrusterFuelAmount > 0f)//changed Input.GetButton("Jump")  to JumpAxis
         {
             thrusterFuelAmount -= thrusterFuelBurnSpeed * Time.deltaTime;
 
