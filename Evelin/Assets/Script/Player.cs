@@ -1,8 +1,10 @@
 ﻿using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
+using System;
 
-
+[RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(Rigidbody))]
 public class Player : NetworkBehaviour {
 
     [SyncVar]
@@ -12,6 +14,10 @@ public class Player : NetworkBehaviour {
         get { return _isDead; }
         protected set { _isDead = value; }
     }
+
+    private Rigidbody rb;
+    private Animator animator;
+    
 
     [SerializeField]
     private int maxHealth = 100;
@@ -85,17 +91,24 @@ public class Player : NetworkBehaviour {
         SetDefaults();
     }
 
-    /*
+    
      private void Update()
     {
         if (!isLocalPlayer)
             return;
+        
         if (Input.GetKeyDown(KeyCode.K))
         {
-            RpcTakeDamage(9999999);
+            RpcTakeDamage(9999999, "Player 1");
         }
+
+        if (Input.GetKeyDown(KeyCode.O))
+        {
+            RpcTakeDamage(5, "Player 1");
+        }
+
     }
-    */
+    
 
 
     [ClientRpc]
@@ -104,6 +117,12 @@ public class Player : NetworkBehaviour {
         if (isDead)
             return;
         currentHealth -= _amount;
+
+        GameObject bloodImage = GameObject.Find("BloodSplatter");
+
+        var bloodScript = bloodImage.GetComponent<SplatterFade>();
+
+        bloodScript.TakingDamageBloodSplatter(_amount);
 
         Debug.Log(transform.name + " now has " + currentHealth + " Health");
         if (currentHealth <= 0)
@@ -131,6 +150,39 @@ public class Player : NetworkBehaviour {
 
         
 
+        
+
+        //Spawn a death effect for ROBOT
+        //GameObject _gfxIns = (GameObject)Instantiate(deathEffect, transform.position, Quaternion.identity);
+        //Destroy(_gfxIns, 3f);
+        //Spawn a death animation for Western
+
+        rb = GetComponent<Rigidbody>();
+        rb.isKinematic = true;
+
+        // Place the blood on the sreen
+        GameObject bloodImage = GameObject.Find("BloodSplatter");
+
+        var bloodScript = bloodImage.GetComponent<SplatterFade>();
+
+        bloodScript.Die();
+
+        animator = GetComponent<Animator>();
+        animator.SetTrigger("Die");
+        StartCoroutine(DyingAnimation());
+
+        
+
+
+    }
+
+    private IEnumerator DyingAnimation()
+    {
+        Debug.Log("Before yield waitforseconds" + Time.deltaTime);
+        yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length + animator.GetCurrentAnimatorStateInfo(0).normalizedTime);
+
+        Debug.Log("After yield waitforseconds" + Time.deltaTime);
+
         //Disable component
         for (int i = 0; i < disableOnDeath.Length; i++)
         {
@@ -140,7 +192,7 @@ public class Player : NetworkBehaviour {
         //Disable Game objects
         for (int i = 0; i < disableGameObjectsOnDeath.Length; i++)
         {
-            disableGameObjectsOnDeath[i].SetActive (false);
+            disableGameObjectsOnDeath[i].SetActive(false);
         }
 
         //disable the collider
@@ -149,21 +201,17 @@ public class Player : NetworkBehaviour {
 
             _col.enabled = false;
 
-        //Spawn a death effect
-        GameObject _gfxIns = (GameObject)Instantiate(deathEffect, transform.position, Quaternion.identity);
-        Destroy(_gfxIns, 3f);
-
         //Switch camera
         if (isLocalPlayer)
         {
+
+            GetComponent<PlayerSetup>().playerUIInstance.SetActive(false);
             GameManager.instance.SetSceneCameraActive(true);
-            GetComponent<PlayerSetup>().playerUIInstance.SetActive(false);  
         }
 
         Debug.Log(transform.name + " is dead!");
 
         StartCoroutine(Respawn());
-
     }
 
     private IEnumerator Respawn()
@@ -214,4 +262,8 @@ public class Player : NetworkBehaviour {
         //GameObject _gfxIns = (GameObject)Instantiate(spawnEffect, transform.position, Quaternion.identity);
         //Destroy(_gfxIns, 3f);
     }
+}
+
+internal class rigidbody
+{
 }

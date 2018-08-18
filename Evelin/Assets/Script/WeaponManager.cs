@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+﻿    using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
 
@@ -7,16 +7,35 @@ public class WeaponManager : NetworkBehaviour {
     [SerializeField]
     private string weaponLayerName = "Weapon";
 
-    [SerializeField]
-    private Transform weaponHolder;
+    
+    public Transform weaponHolder;
+
+    /// <summary>
+    ///     [SerializeField]
+    ///private PlayerWeapon primaryWeapon;
+    /// </summary>
+    
+    
+    public WeaponShoot primaryWeapon;
 
     [SerializeField]
-    private PlayerWeapon primaryWeapon;
+    private WeaponShoot m4;
+    public bool hasM4 = false;
 
-    private PlayerWeapon currentWeapon;
+
+    //private PlayerWeapon currentWeapon;
+    public WeaponShoot currentWeapon;
+    
+
     private WeaponGraphics currentGraphics;
 
     public bool isReloading = false;
+    private AudioSource fireSound;
+    [SerializeField]
+    private AudioClip reloadSound;
+    public GameObject weaponInstanceEquiped = null;
+    private GameObject weaponToUse;
+    
 
 
     // Use this for initialization
@@ -24,7 +43,7 @@ public class WeaponManager : NetworkBehaviour {
         EquipeWeapon(primaryWeapon);
 	}
 	
-	public PlayerWeapon GetCurrentWeapon ()
+	public WeaponShoot GetCurrentWeapon ()
     {
         return currentWeapon;
     }
@@ -34,28 +53,42 @@ public class WeaponManager : NetworkBehaviour {
         return currentGraphics;
     }
 
-	void EquipeWeapon (PlayerWeapon _weapon)
+    public AudioSource GetCurrentSound()
     {
-        currentWeapon = _weapon;
+        return fireSound;
+    }
 
-        GameObject _weaponIns = (GameObject) Instantiate(_weapon.graphics, weaponHolder.position, weaponHolder.rotation);
-        _weaponIns.transform.SetParent(weaponHolder);
-        
-        currentGraphics = _weaponIns.GetComponent<WeaponGraphics>();
+    public void EquipeWeapon (WeaponShoot weaponToUse )
+    {
+
+        foreach (Transform child in weaponHolder)
+        {
+            GameObject.Destroy(child.gameObject);
+        }
+
+            currentWeapon = weaponToUse;
+
+        GameObject weaponInstanceEquiped = (GameObject) Instantiate(weaponToUse.graphics, weaponHolder.position, weaponHolder.rotation);
+        weaponInstanceEquiped.transform.SetParent(weaponHolder);
+
+        Debug.Log("Weapon"+ weaponToUse.name + "eauiped " + weaponHolder.position);
+
+        currentGraphics = weaponInstanceEquiped.GetComponent<WeaponGraphics>();
+        fireSound = weaponInstanceEquiped.GetComponent<AudioSource>();
 
         if (currentGraphics == null)
-            Debug.Log("No fucking WeaponGraphics component on the" + _weaponIns.name + "weapon");
+            Debug.Log("No fucking WeaponGraphics component on the" + weaponInstanceEquiped.name + "weapon");
 
         if (isLocalPlayer)
-            Util.SetLayerRecursively  (_weaponIns, LayerMask.NameToLayer(weaponLayerName));
-
+            Util.SetLayerRecursively  (weaponInstanceEquiped, LayerMask.NameToLayer(weaponLayerName));
+        Reload();   
 	}
 
     public void Reload ()
     {
         if (isReloading)
             return;
-
+        GetComponent<AudioSource>().PlayOneShot(reloadSound);
         StartCoroutine(Reload_Coroutine());
     }
 
@@ -84,7 +117,8 @@ public class WeaponManager : NetworkBehaviour {
         Animator anim = currentGraphics.GetComponent<Animator>();
         if (anim != null)
         {
-            anim.SetTrigger("Reload");
+            anim.speed = currentWeapon.weaponReloadSpeedFactor;
+          anim.SetTrigger("Reload");
         }
     }
 

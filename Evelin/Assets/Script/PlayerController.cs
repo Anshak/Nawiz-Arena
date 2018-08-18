@@ -1,9 +1,12 @@
 ﻿
 using UnityEngine;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Animator))]
 [RequireComponent(typeof(PlayerMotor))]
-[RequireComponent(typeof(ConfigurableJoint))]
+// trying to remove joint effect
+//[RequireComponent(typeof(ConfigurableJoint))]
+[RequireComponent(typeof(WeaponManager))]
 
 public class PlayerController : MonoBehaviour {
 
@@ -32,9 +35,16 @@ public class PlayerController : MonoBehaviour {
     //public FixedJoystick MoveJoystick;
     // public FixedButton JumpButton;
     // public FixedTouchField TouchField;
-    public GameObject joy;
-    public GameObject jump;
-    public GameObject touch;
+    private GameObject joy;
+    private GameObject jump;
+    private GameObject touch;
+    private GameObject weapon2buttonObject;
+    private GameObject weapon1buttonObject;
+
+
+    public bool enter = true;
+
+    public WeaponShoot m4Weapon;
 
     public float GetThrusterFuelAmount()
     {
@@ -53,15 +63,27 @@ public class PlayerController : MonoBehaviour {
 
     //Component caching
     private PlayerMotor motor;
-    private ConfigurableJoint joint;
+    // trying to remove joint effect
+    //private ConfigurableJoint joint;
     private Animator animator;
+    private WeaponManager weaponManager;
+
+    public Sprite m4Sprite; // <- This is the new sprite
+
+    private bool hasWeapon2 = false;
+    
 
     private void Start()
     {
         motor = GetComponent<PlayerMotor>();
-        joint = GetComponent<ConfigurableJoint>();
+        // trying to remove joint effect
+        //joint = GetComponent<ConfigurableJoint>();
         animator = GetComponent<Animator>();
-        SetJointSettings(jointSpring);
+        weaponManager = GetComponent<WeaponManager>();
+        
+                
+        // What the hell is this???
+        //SetJointSettings(jointSpring);
     }
 
     private void Update()
@@ -80,22 +102,28 @@ public class PlayerController : MonoBehaviour {
         }
 
         //var MoveJoystick = GameObject.FindWithTag("MoveJoystick");
-
-        // Getting the Joystick scene gameObject
         joy = GameObject.Find("Fixed Joystick");
-        // Getting the Script component to reference the function
+        // Getting the Joystick scene gameObject
         FixedJoystick MoveJoystick = joy.GetComponent<FixedJoystick>();
+        
+        
+        // Getting the Script component to reference the function
+
+        //jump = GameObject.Find("FixedButton 1");
+
 
         //same than the Joystick
-        jump = GameObject.Find("FixedButton 1");
-        FixedButton JumpButton = jump.GetComponent<FixedButton>();
+        //FixedButton JumpButton = jump.GetComponent<FixedButton>();
 
-        //same than the Joystick
         touch = GameObject.Find("LookAxis Panel");
+        //same than the Joystick
         FixedTouchField TouchField = touch.GetComponent<FixedTouchField>();
 
+
+
+
         RunAxis = MoveJoystick.inputVector;
-        JumpAxis = JumpButton.Pressed;
+        //JumpAxis = JumpButton.Pressed;
         LookAxis = TouchField.TouchDist;
 
         // if (Cursor.lockState != CursorLockMode.Locked)
@@ -104,6 +132,7 @@ public class PlayerController : MonoBehaviour {
         //}
 
         // setting target position for spring makes it cool when flying over objects
+        /*
         RaycastHit _hit;
         if (Physics.Raycast (transform.position, Vector3.down, out _hit, 100f, environmentMask))
         {
@@ -113,7 +142,7 @@ public class PlayerController : MonoBehaviour {
         {
             joint.targetPosition = new Vector3(0f, 0f, 0f);
         }
-
+        */
         //Calculate movement velocity
         float _xMov = RunAxis.x; // Changed  Input.GetAxis("Horizontal") to RunAxis.x 
         float _zMov = RunAxis.y; // Same
@@ -125,8 +154,15 @@ public class PlayerController : MonoBehaviour {
         //final movement vector
         Vector3 _velocity = (_movHorizontal + _movVertical) * speed;
 
+        //Debug.Log("my _zMov is : " + _zMov);
+
+        //Debug.Log("Animator name : " + animator);
+
         //Animate movement
-        animator.SetFloat("ForwardVelocity", _zMov);
+        // reactivate this in order to have the animation of the thurster (I think...)
+        //animator.SetFloat("ForwardVelocity", _zMov);
+        animator.SetFloat("BlendY", _zMov);
+        animator.SetFloat("BlendX", _xMov);
 
         //apply movement
         motor.Move(_velocity);
@@ -151,7 +187,10 @@ public class PlayerController : MonoBehaviour {
 
         //calculate thruster force based on player input
         Vector3 _thrusterForce = Vector3.zero;
-        
+
+
+        // trying to remove joint effect
+        /*
         if (JumpAxis && thrusterFuelAmount > 0f)//changed Input.GetButton("Jump")  to JumpAxis
         {
             thrusterFuelAmount -= thrusterFuelBurnSpeed * Time.deltaTime;
@@ -170,15 +209,67 @@ public class PlayerController : MonoBehaviour {
 
             SetJointSettings(jointSpring);
         }
+        */
 
         thrusterFuelAmount = Mathf.Clamp(thrusterFuelAmount, 0f, 1f);
 
+        // trying to remove joint effect
         //apply the thruster force
-        motor.ApplyThruster(_thrusterForce);
+        //motor.ApplyThruster(_thrusterForce);
+
+
+        weapon2buttonObject = GameObject.Find("Weapon 2 button");
+        FixedButton weapon2FixedButton = weapon2buttonObject.GetComponent<FixedButton>();
+
+        weapon1buttonObject = GameObject.Find("Weapon 1 button");
+        FixedButton weapon1FixedButton = weapon1buttonObject.GetComponent<FixedButton>();
+
+        if (weapon2FixedButton.Pressed & hasWeapon2)
+        {
+           
+            weaponManager.EquipeWeapon(m4Weapon);
+            animator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>("WesternAnimatorController2");
+        }
+
+        if (weapon1FixedButton.Pressed)
+        {
+           
+            weaponManager.EquipeWeapon(weaponManager.primaryWeapon);
+        }
+
+    }
+    private void OnTriggerEnter(Collider loot)
+    {
+        if (enter)
+        {
+            Debug.Log("entered");
+            Destroy(loot.gameObject);
+
+            weaponManager.hasM4 = true;
+
+            Debug.Log("Looted m4" + weaponManager.hasM4);
+
+            
+            //FixedButton m4Button = m4B.GetComponent<FixedButton>();
+            //Sprite m4BSprite  = m4B.GetComponent<Sprite>();
+
+            Image image = GameObject.Find("Weapon 2 button").GetComponent<Image>();
+            //Color imageColor = image.GetComponent<Color>();
+
+            image.sprite = m4Sprite;
+            image.color = new Color (1f,1f,1f,1f);
+            
+            image.preserveAspect = true;
+            hasWeapon2 = true;
+
+        }
     }
 
-    private void SetJointSettings (float _jointSpring)
+
+
+        private void SetJointSettings (float _jointSpring)
     {
-        joint.yDrive = new JointDrive { positionSpring = _jointSpring, maximumForce = jointMaxForce };
+        // trying to remove joint effect
+        //joint.yDrive = new JointDrive { positionSpring = _jointSpring, maximumForce = jointMaxForce };
     }
 }

@@ -22,6 +22,8 @@ public class PlayerSetup : NetworkBehaviour {
     [HideInInspector]
     public GameObject playerUIInstance;
 
+    private GameObject minimapCamera;
+    private Minimap minimap;
 
  
 
@@ -36,7 +38,7 @@ public class PlayerSetup : NetworkBehaviour {
         {
         
             //Disable player graphics for local
-            SetLayerRecursively(playerGraphics, LayerMask.NameToLayer(dontDrawLayerName));
+            //SetLayerRecursively(playerGraphics, LayerMask.NameToLayer(dontDrawLayerName));
 
             //create Player UI
             playerUIInstance = Instantiate(playerUIPrefab);
@@ -47,6 +49,11 @@ public class PlayerSetup : NetworkBehaviour {
             if (ui == null)
                 Debug.LogError("No PlayerUi comp  on the player UI fucking prefab");
             ui.SetPlayer(GetComponent<Player>());
+
+            minimapCamera = GameObject.Find("MinimapCamera");
+            minimap = minimapCamera.GetComponent<Minimap>();
+
+            minimap.SetPlayer(GetComponent<Transform>());
 
             GetComponent<Player>().SetupPlayer();
 

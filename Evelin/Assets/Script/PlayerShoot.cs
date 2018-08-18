@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
+using System.Collections;
 using UnityEngine.Networking;
-
 
 
 [RequireComponent(typeof (WeaponManager))]
@@ -19,11 +19,25 @@ public class PlayerShoot : NetworkBehaviour {
     private GameObject projectile;
 
     private WeaponManager weaponManager;
-    private PlayerWeapon currentWeapon;
+    private WeaponShoot currentWeapon;
     private Rigidbody firedProjectileRigidbody;
     private Projectile firedProjectileScript;
 
     public GameObject bfire;
+    public GameObject sbfire;
+    private bool canFire;
+    private float actualROF;
+    private float fireTimer = 0f;
+    public bool recoil = true;
+    private Transform raycastStartSpot;
+    public Transform weaponHolderInitial;
+
+    public GameObject bulletHole;
+
+    private float currentCrosshairSize;
+
+    private float currentAccuracy;
+
 
     private void Start()
     {
@@ -33,18 +47,47 @@ public class PlayerShoot : NetworkBehaviour {
             this.enabled = false;
         }
 
+        raycastStartSpot = cam.transform;
+            
         weaponManager = GetComponent<WeaponManager>();
+
+
+        //TODO = instead of a getter consider using delegates (also to change the icon highlight)
+        //currentWeapon = weaponManager.GetCurrentWeapon();
+        //Debug.Log("PlayerShoot Start method :" + weaponManager.GetCurrentWeapon() + " ---- " + currentWeapon);
+        //currentCrosshairSize = currentWeapon.startingCrosshairSize;
+
 
     }
 
     private void Update()
     {
-        currentWeapon = weaponManager.GetCurrentWeapon();   
+        currentWeapon = weaponManager.GetCurrentWeapon();
 
-        if (PauseMenu.IsOn)
+
+        weaponManager.weaponHolder.transform.position = Vector3.Lerp(weaponManager.weaponHolder.transform.position, weaponHolderInitial.position , currentWeapon.recoilRecoveryRate * Time.deltaTime);
+        weaponManager.weaponHolder.transform.rotation = Quaternion.Lerp(weaponManager.weaponHolder.transform.rotation, weaponHolderInitial.rotation, currentWeapon.recoilRecoveryRate * Time.deltaTime);
+
+        // Calculate the current accuracy for this weapon
+        currentAccuracy = Mathf.Lerp(currentAccuracy, currentWeapon.accuracy, currentWeapon.accuracyRecoverRate * Time.deltaTime);
+
+
+        // Calculate the current crosshair size.  This is what causes the crosshairs to grow and shrink dynamically while shooting
+        currentCrosshairSize = currentWeapon.startingCrosshairSize + (currentWeapon.accuracy - currentAccuracy) * 0.8f;
+
+        
+
+        if (currentWeapon.firerate != 0)
+            actualROF = 1.0f / currentWeapon.firerate;
+        else
+            actualROF = 0.01f;
+        // Update the fireTimer
+        fireTimer += Time.deltaTime;
+
+        /*if (PauseMenu.IsOn)
         {
             return;
-        }
+        }*/
 
         if (currentWeapon.bullets < currentWeapon.maxBullets)
         {
@@ -54,22 +97,69 @@ public class PlayerShoot : NetworkBehaviour {
             }
         }
 
-        bfire = GameObject.Find("FixedButton 2");
-        FixedButton FireButton = bfire.GetComponent<FixedButton>();
-                               
-        //JumpAxis = FireButton.Pressed;
 
-        if (FireButton.Pressed) // replaced Input.GetButtonDown("Fire1") by FireButton.Pressed
+                bfire = GameObject.Find("FixedButton 2");
+        FixedButton FireButton = bfire.GetComponent<FixedButton>();
+
+        sbfire = GameObject.Find("FixedButton 2 s");
+        FixedButton FireButtonS = sbfire.GetComponent<FixedButton>();
+
+        //JumpAxis = FireButton.Pressed;
+     
+        if (canFire)
         {
-            Shoot();
+            if (fireTimer >= actualROF)
+            { 
+            if (FireButton.Pressed || FireButtonS.Pressed) // replaced Input.GetButtonDown("Fire1") by FireButton.Pressed  -- 
+                {
+                    Shoot();
+           
+                }
+            }
+        }
+        
+
+        if (FireButton.Pressed == false && FireButtonS.Pressed == false)
+        {
+            canFire = true;
+        }
+
+    
+    }
+
+    //Drawing the crosshair
+    void OnGUI()
+    {
+
+        // Crosshairs
+        // Debug.Log("Should we show crosshair = " + currentWeapon.showCrosshair);
+
+        if (currentWeapon)
+        { 
+        if (currentWeapon.showCrosshair)
+        {
+            // Hold the location of the center of the screen in a variable
+            Vector2 center = new Vector2(Screen.width / 2, Screen.height / 2);
+            //Debug.Log("Center of the screen is = " + center);
+            // Draw the crosshairs based on the weapon's inaccuracy
+            // Left
+            Rect leftRect = new Rect(center.x - currentWeapon.crosshairLength - currentCrosshairSize, center.y - (currentWeapon.crosshairWidth / 2), currentWeapon.crosshairLength, currentWeapon.crosshairWidth);
+            GUI.DrawTexture(leftRect, currentWeapon.crosshairTexture, ScaleMode.StretchToFill);
+            // Right
+            Rect rightRect = new Rect(center.x + currentCrosshairSize, center.y - (currentWeapon.crosshairWidth / 2), currentWeapon.crosshairLength, currentWeapon.crosshairWidth);
+            GUI.DrawTexture(rightRect, currentWeapon.crosshairTexture, ScaleMode.StretchToFill);
+            // Top
+            Rect topRect = new Rect(center.x - (currentWeapon.crosshairWidth / 2), center.y - currentWeapon.crosshairLength - currentCrosshairSize, currentWeapon.crosshairWidth, currentWeapon.crosshairLength);
+            GUI.DrawTexture(topRect, currentWeapon.crosshairTexture, ScaleMode.StretchToFill);
+            // Bottom
+            Rect bottomRect = new Rect(center.x - (currentWeapon.crosshairWidth / 2), center.y + currentCrosshairSize, currentWeapon.crosshairWidth, currentWeapon.crosshairLength);
+            GUI.DrawTexture(bottomRect, currentWeapon.crosshairTexture, ScaleMode.StretchToFill);
+
+            GUI.DrawTexture(new Rect(center.x, center.y, 1, 1), currentWeapon.crosshairTexture, ScaleMode.StretchToFill);
 
         }
 
-        /*if (CrossPlatformInputManager.GetButtonDown("Fire2"))
-        {
-            ShootSpecial();
-
-        }*/
+        }
     }
 
     //Is called on the server wehn a player shoots
@@ -84,6 +174,7 @@ public class PlayerShoot : NetworkBehaviour {
     void RpcDoShootEffect ()
     {
         weaponManager.GetCurrentGraphics().muzzleFlash.Play();
+        Debug.Log("RPC do shoot effect triggered");
     }
 
     //Is called on the server when we hit something
@@ -100,6 +191,7 @@ public class PlayerShoot : NetworkBehaviour {
     {
         GameObject _hitEffect = Instantiate(weaponManager.GetCurrentGraphics().hitEffectPrefab, _pos, Quaternion.LookRotation(_normal));
         Destroy(_hitEffect, 2f);
+        
     }
 
     [Client]
@@ -118,23 +210,7 @@ public class PlayerShoot : NetworkBehaviour {
     [Command]
     void CmdSpawnSpecialShoot ()
     {
-        //create a bullet from prefab
-        GameObject firedProjectile = Instantiate(projectile) as GameObject;
-
-        //choose the position 
-        firedProjectile.transform.position = cam.transform.position + new Vector3(2, 1, 1);
-
-        //Add velocity to the bullet
-        firedProjectileRigidbody = firedProjectile.GetComponent<Rigidbody>();
-        firedProjectileRigidbody.velocity = cam.transform.forward * 20;
-
-        //assign source to projectile
-        firedProjectileScript = firedProjectile.GetComponent<Projectile>();
-        Debug.Log("The fucking shooter is " + transform.name);
-        firedProjectileScript.shooterName    = transform.name;
-
-        //spawn the bullet on the server
-        NetworkServer.Spawn(firedProjectile);
+       
     }
 
     [Client]
@@ -145,6 +221,12 @@ public class PlayerShoot : NetworkBehaviour {
             
             return;
         }
+
+
+        // Reset the fireTimer to 0 (for ROF)
+        fireTimer = 0.0f;
+
+        Debug.Log("Shoot");
 
         if (currentWeapon.bullets <= 0)
         {
@@ -158,26 +240,73 @@ public class PlayerShoot : NetworkBehaviour {
 
         // We are shooting, calll the OnShoot method on the server
         CmdOnShoot();
-            
-        RaycastHit _hit;
-        if (Physics.Raycast(cam.transform.position,cam.transform.forward,out _hit, currentWeapon.range, mask))
-        {
-            // We hit something
 
-            if (_hit.collider.tag == PLAYER_TAG)
+        // Fire once for each shotPerRound value
+        for (int i = 0; i < currentWeapon.shotPerRound; i++)
+        {
+
+
+            // taking into account the accuracy
+            float accuracyVary = (100 - currentAccuracy) / 2000; // TODO : check if value is correct, initially it was set to 1000
+            Vector3 direction = raycastStartSpot.forward;
+            direction.x += Random.Range(-accuracyVary, accuracyVary);
+            direction.y += Random.Range(-accuracyVary, accuracyVary);
+            direction.z += Random.Range(-accuracyVary, accuracyVary);
+            currentAccuracy -= currentWeapon.accuracyDropPerShot;
+            if (currentAccuracy <= 0.0f)
+                currentAccuracy = 0.0f;
+
+            Ray ray = new Ray(raycastStartSpot.position, direction);
+
+            RaycastHit _hit;
+
+            if (Physics.Raycast(ray, out _hit, currentWeapon.range, mask))
+            //if (Physics.Raycast(raycastStartSpot.position, raycastStartSpot.forward, out _hit, currentWeapon.range, mask))
+            //if (Physics.Raycast(cam.transform.position,cam.transform.forward,out _hit, currentWeapon.range, mask))
             {
-                CmdPlayerShot(_hit.collider.name, currentWeapon.damage, transform.name);
+                // We hit something
+
+                if (_hit.collider.tag == PLAYER_TAG)
+                {
+                    CmdPlayerShot(_hit.collider.name, currentWeapon.damage, transform.name);
+                }
+
+                //place bullet holes
+
+                GameObject bh = Instantiate(bulletHole, _hit.point, Quaternion.FromToRotation(Vector3.up, _hit.normal));
+                //bulletHole.transform.position = _hit.point;
+                //bulletHole.transform.rotation = Quaternion.FromToRotation(Vector3.up, _hit.normal);
+                
+
+                // We hit something call the onhit method on the fucking server
+
+                CmdOnHit(_hit.point, _hit.normal);
             }
 
-            // We hit something call the onhit method on the fucking server
-
-            CmdOnHit(_hit.point, _hit.normal);
         }
+
+
         if (currentWeapon.bullets <= 0)
         {
             weaponManager.Reload();
             
         }
+        if (currentWeapon.auto == Auto.Semi)
+            canFire = false;
+
+        weaponManager.GetCurrentSound().Play();
+
+        // Calculate random values for the recoil position and rotation
+        float kickBack = Random.Range(currentWeapon.recoilKickBackMin, currentWeapon.recoilKickBackMax);
+        float kickRot = Random.Range(currentWeapon.recoilRotationMin, currentWeapon.recoilRotationMax);
+
+        //Debug.Log("weaponInstanceEquiped " + weaponManager.weaponInstanceEquiped);
+        // Apply the random values to the weapon's postion and rotation
+        weaponManager.weaponHolder.transform.Translate(new Vector3(0, 0, -kickBack), Space.Self);
+        weaponManager.weaponHolder.transform.Rotate(new Vector3(-kickRot, 0, 0), Space.Self);
+
+
+
     }
 
     [Command]

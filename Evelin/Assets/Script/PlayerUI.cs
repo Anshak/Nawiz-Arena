@@ -44,6 +44,7 @@ public class PlayerUI : MonoBehaviour {
 
     private void Update()
     {
+        
         SetFuelAmount(controller.GetThrusterFuelAmount());
         SetHealthAmount(player.GetHealPct());
         SetAmmoAmount(weaponManager.GetCurrentWeapon().bullets);
